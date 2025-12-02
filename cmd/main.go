@@ -55,6 +55,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	log.Println("server start Listen on ", l.Addr())
 	for {
 		conn, err := l.Accept()
 		if err != nil {
