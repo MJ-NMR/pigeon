@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"log"
 	"net"
 	"os"
@@ -9,34 +8,12 @@ import (
 
 var debug = false
 
-const address = ":6969"
+const (
+	address      = ":6969"
+	msgMaxLenght = 50
+)
 
-type user struct {
-	name string
-	conn net.Conn
-}
-
-var users = make(map[string]*user)
-
-func (u *user) read() (msg string, err error) {
-	reader := bufio.NewReader(u.conn)
-	msg, err = reader.ReadString('\n')
-	if err != nil {
-		flog(err.Error())
-		delete(users, u.name)
-		return "", err
-	}
-	return msg , nil
-}
-
-func (u *user) write(s string) {
-	_, err := u.conn.Write([]byte(s))
-	if err != nil {
-		flog(err.Error())
-		delete(users, u.name)
-		return
-	}
-}
+var users = make(map[string]*net.Conn)
 
 func flog(s string) {
 	if debug {
@@ -66,7 +43,7 @@ func main() {
 }
 
 func login(conn net.Conn) {
-	_, err := conn.Write([]byte("Hello! Wilcome to ZA3TER chat server\n"))
+	_, err := conn.Write([]byte("Hello! Welcome to ZA3TER chat server\n"))
 	if err != nil {
 		flog(err.Error())
 		conn.Close()
@@ -85,7 +62,7 @@ func login(conn net.Conn) {
 		if err != nil {
 			conn.Write([]byte("Sorry...Something Wrong Happen"))
 			flog(err.Error())
-			conn.Close()
+			continue
 		}
 
 		username := string(input[:n-1])
@@ -95,7 +72,7 @@ func login(conn net.Conn) {
 				conn.Write([]byte("Username exist tye something else"))
 				continue
 			}
-			users[username] = &user{username, conn}
+			users[username] = &conn
 			flog("+++ added user " + username)
 			go messageReader(username)
 			return
@@ -104,24 +81,44 @@ func login(conn net.Conn) {
 }
 
 func messageReader(username string) {
-	u := users[username]
+	conn := *users[username]
+	buff := make([]byte, msgMaxLenght)
+	var msg string
 	for {
-		msg, err := u.read()
+		n, err := conn.Read(buff)
 		if err != nil {
+			flog(err.Error())
+			delete(users, username)
 			return
+		}
+
+		msg += string(buff[:n])
+		if buff[n-1] != '\n' {
+			continue
 		}
 		err = hub(username, msg)
 		if err != nil {
+			flog(err.Error())
 			return
 		}
 	}
 }
 
 func hub(username, msg string) error {
-	fullmsg := "\x1b[32m"+username+":\x1b[0m "+msg
-	for v := range users {
-		if v == username { continue }
-		users[v].write(fullmsg)
+	if len(msg) > msgMaxLenght {
+		return nil
+	}
+	fullmsg := "\x1b[32m" + username + ":\x1b[0m " + msg
+	for resever := range users {
+		if resever == username {
+			continue
+		}
+		_, err := (*users[resever]).Write([]byte(fullmsg))
+		if err != nil {
+			flog(err.Error())
+			delete(users, resever)
+			return nil
+		}
 	}
 	return nil
 }
