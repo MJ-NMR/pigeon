@@ -2,11 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"log"
+	"fmt"
 	"net"
 	"os"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
+	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
 var debug = false
@@ -14,14 +15,14 @@ var debug = false
 const (
 	address      = ":6969"
 	msgMaxLenght = 50
-	dbPath = "./users.sqlit3"
+	dbPath       = "./users.sqlit3"
 )
 
 var users = make(map[string]*net.Conn)
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--debug" {
-		log.Print("debug are ON")
+		fmt.Print("debug are ON")
 		debug = true
 	}
 	db := openDB(dbPath)
@@ -29,14 +30,15 @@ func main() {
 
 	l, err := net.Listen("tcp", address)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
-	log.Println("server start Listen on ", l.Addr())
+	fmt.Println("server start Listen on ", l.Addr())
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Print(err)
+			fmt.Print(err)
 		}
 		go login(conn)
 	}
@@ -44,7 +46,7 @@ func main() {
 
 func flog(s string) {
 	if debug {
-		log.Print(s)
+		fmt.Print(s)
 	}
 }
 
@@ -115,7 +117,7 @@ func hub(username, msg string) error {
 	if len(msg) > msgMaxLenght {
 		return nil
 	}
-	fullmsg := "\x1b[32m" + username + ":\x1b[0m " + msg
+	fullmsg := fmt.Sprintf("\x1b[32m%s:\x1b[0m %s", username, msg)
 	for resever := range users {
 		if resever == username {
 			continue
@@ -133,19 +135,24 @@ func hub(username, msg string) error {
 func openDB(path string) *sql.DB {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	var exist bool
 	qres := db.QueryRow("SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name=users);")
 	if qres.Scan(&exist); err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	if exist { return db }
+	if exist {
+		return db
+	}
 
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 	return db
 }
