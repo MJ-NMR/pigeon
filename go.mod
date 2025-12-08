@@ -1,4 +1,4 @@
-module github.com/MJ-NMR/pegeon
+module github.com/MJ-NMR/pigeon
 
 go 1.25.4
 

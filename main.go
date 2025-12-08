@@ -15,7 +15,7 @@ var debug = false
 const (
 	address      = ":6969"
 	msgMaxLenght = 50
-	dbPath       = "./users.sqlit3"
+	dbPath       = "./users.sqlite3"
 )
 
 var users = make(map[string]*net.Conn)
