@@ -1,9 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net"
 	"os"
+
+	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
 var debug = false
@@ -11,21 +14,18 @@ var debug = false
 const (
 	address      = ":6969"
 	msgMaxLenght = 50
+	dbPath = "./users.sqlit3"
 )
 
 var users = make(map[string]*net.Conn)
-
-func flog(s string) {
-	if debug {
-		log.Print(s)
-	}
-}
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--debug" {
 		log.Print("debug are ON")
 		debug = true
 	}
+	db := openDB(dbPath)
+	defer db.Close()
 
 	l, err := net.Listen("tcp", address)
 	if err != nil {
@@ -42,7 +42,14 @@ func main() {
 	}
 }
 
+func flog(s string) {
+	if debug {
+		log.Print(s)
+	}
+}
+
 func login(conn net.Conn) {
+	// TODO: auth & database
 	_, err := conn.Write([]byte("Hello! Welcome to ZA3TER chat server\n"))
 	if err != nil {
 		flog(err.Error())
@@ -121,4 +128,24 @@ func hub(username, msg string) error {
 		}
 	}
 	return nil
+}
+
+func openDB(path string) *sql.DB {
+	db, err := sql.Open("sqlite3", path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var exist bool
+	qres := db.QueryRow("SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name=users);")
+	if qres.Scan(&exist); err != nil {
+		log.Fatal(err)
+	}
+	if exist { return db }
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return db
 }
