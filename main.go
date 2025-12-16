@@ -52,7 +52,7 @@ func flog(s string) {
 
 func login(conn net.Conn) {
 	// TODO: auth & database
-	_, err := conn.Write([]byte("Hello! Welcome to ZA3TER chat server\n"))
+	_, err := fmt.Fprint(conn, "Hello! Welcome to ZA3TER chat server\n") //conn.Write([]byte("Hello! Welcome to ZA3TER chat server\n"))
 	if err != nil {
 		flog(err.Error())
 		conn.Close()
@@ -61,7 +61,7 @@ func login(conn net.Conn) {
 
 	for {
 
-		_, err = conn.Write([]byte("Username: "))
+		_, err = fmt.Fprint(conn, "Username: ") //conn.Write([]byte("Username: "))
 		if err != nil {
 			flog(err.Error())
 			conn.Close()
@@ -69,7 +69,7 @@ func login(conn net.Conn) {
 
 		n, err := conn.Read(input)
 		if err != nil {
-			conn.Write([]byte("Sorry...Something Wrong Happen"))
+			fmt.Fprint(conn, "Sorry...Something Wrong Happen\n") //conn.Write([]byte("Sorry...Something Wrong Happen"))
 			flog(err.Error())
 			continue
 		}
@@ -78,7 +78,7 @@ func login(conn net.Conn) {
 		if n > 0 {
 			_, ok := users[username]
 			if ok {
-				conn.Write([]byte("Username exist tye something else"))
+				fmt.Fprint(conn, "Username exist tye something else\n") //conn.Write([]byte("Username exist tye something else"))
 				continue
 			}
 			users[username] = &conn
@@ -106,6 +106,7 @@ func messageReader(username string) {
 			continue
 		}
 		err = hub(username, msg)
+		msg = ""
 		if err != nil {
 			flog(err.Error())
 			return
@@ -122,7 +123,7 @@ func hub(username, msg string) error {
 		if resever == username {
 			continue
 		}
-		_, err := (*users[resever]).Write([]byte(fullmsg))
+		_, err := fmt.Fprint(*users[resever], fullmsg) //(*users[resever]).Write([]byte(fullmsg))
 		if err != nil {
 			flog(err.Error())
 			delete(users, resever)
